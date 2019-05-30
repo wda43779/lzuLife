@@ -1,4 +1,5 @@
-import comb from "../comb";
+import comb, { emptyObjectID } from "../comb";
+import { ObjectID } from "mongodb";
 
 describe("util strict()", () => {
   it("can deal with object within multi string", () => {
@@ -7,27 +8,22 @@ describe("util strict()", () => {
       password: ""
     };
     let strictBody = comb(undefined, dft);
-    expect(strictBody);
     expect(strictBody.username).toBe("");
     expect(strictBody.password).toBe("");
 
     strictBody = comb({}, dft);
-    expect(strictBody);
     expect(strictBody.username).toBe("");
     expect(strictBody.password).toBe("");
 
     strictBody = comb({ username: "me" }, dft);
-    expect(strictBody);
     expect(strictBody.username).toBe("me");
     expect(strictBody.password).toBe("");
 
     strictBody = comb({ username: "me", password: "123456" }, dft);
-    expect(strictBody);
     expect(strictBody.username).toBe("me");
     expect(strictBody.password).toBe("123456");
 
     strictBody = comb({ username: "me", password: "123456", useless: "" }, dft);
-    expect(strictBody);
     expect(strictBody.username).toBe("me");
     expect(strictBody.password).toBe("123456");
   });
@@ -40,45 +36,37 @@ describe("util strict()", () => {
     };
 
     let strictBody = comb(undefined, dft);
-    expect(strictBody);
     expect(strictBody.sort).toBe("UP_VOTE");
     expect(strictBody.skip).toBe(5);
     expect(strictBody.pageSize).toBe(5);
 
     strictBody = comb({}, dft);
-    expect(strictBody);
     expect(strictBody.sort).toBe("UP_VOTE");
     expect(strictBody.skip).toBe(5);
     expect(strictBody.pageSize).toBe(5);
 
     strictBody = comb({ sort: "TIME" }, dft);
-    expect(strictBody);
     expect(strictBody.sort).toBe("TIME");
     expect(strictBody.skip).toBe(5);
     expect(strictBody.pageSize).toBe(5);
 
     strictBody = comb({ sort: "TIME", skip: 10, pageSize: 5 }, dft);
-    expect(strictBody);
     expect(strictBody.sort).toBe("TIME");
     expect(strictBody.skip).toBe(10);
     expect(strictBody.pageSize).toBe(5);
 
     strictBody = comb({ skip: "10", pageSize: "5" }, dft);
-    expect(strictBody);
     expect(strictBody.sort).toBe("UP_VOTE");
     expect(strictBody.skip).toBe(10);
     expect(strictBody.pageSize).toBe(5);
 
     strictBody = comb({ skip: "0" }, dft);
-    expect(strictBody);
     expect(strictBody.skip).toBe(0);
 
     strictBody = comb({ skip: "" }, dft);
-    expect(strictBody);
     expect(strictBody.skip).toBeNaN();
 
     strictBody = comb({ skip: "some_string" }, dft);
-    expect(strictBody);
     expect(strictBody.skip).toBeNaN();
   });
 
@@ -88,43 +76,33 @@ describe("util strict()", () => {
     };
 
     let strictBody = comb(undefined, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({}, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ a: 1 }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: {} }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: { a: 1 } }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({ a: 1 });
 
     strictBody = comb({ complex: undefined }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: null }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: "" }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: 0 }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
 
     strictBody = comb({ complex: 0 }, dft);
-    expect(strictBody);
     expect(strictBody.complex).toMatchObject({});
   });
 
@@ -134,7 +112,6 @@ describe("util strict()", () => {
     };
 
     let strictBody = comb({}, dft);
-    expect(strictBody);
     expect(strictBody.complex).not.toBe(dft.complex);
   });
 
@@ -148,42 +125,66 @@ describe("util strict()", () => {
     };
 
     let strictBody = comb({}, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
 
     strictBody = comb({ bool: false }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
 
     strictBody = comb({ bool: true }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(true);
 
     strictBody = comb({ bool: "TRUE" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(true);
     strictBody = comb({ bool: "True" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(true);
     strictBody = comb({ bool: "true" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(true);
     strictBody = comb({ bool: "FALSE" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
     strictBody = comb({ bool: "False" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
     strictBody = comb({ bool: "false" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
 
     strictBody = comb({ bool: "some_else" }, dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(false);
 
     strictBody = comb({ bool: "some_else" }, _dft);
-    expect(strictBody);
     expect(strictBody.bool).toBe(true);
+  });
+
+  it("can handle boolean", () => {
+    const dft = {
+      _id: emptyObjectID
+    };
+
+    let strictBody = comb({}, dft);
+    expect(strictBody._id).toBe(emptyObjectID);
+
+    strictBody = comb({ _id: "" }, dft);
+    expect(strictBody._id).toBe(emptyObjectID);
+
+    strictBody = comb({ _id: "123" }, dft);
+    expect(strictBody._id).toBe(emptyObjectID);
+
+    strictBody = comb(
+      {
+        _id: "100000000000000000000000"
+      },
+      dft
+    );
+    expect(
+      strictBody._id.equals(new ObjectID("100000000000000000000000"))
+    ).toBe(true);
+
+    strictBody = comb(
+      {
+        _id: new ObjectID("100000000000000000000000")
+      },
+      dft
+    );
+    expect(
+      strictBody._id.equals(new ObjectID("100000000000000000000000"))
+    ).toBe(true);
   });
 });
