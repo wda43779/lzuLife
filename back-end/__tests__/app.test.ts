@@ -9,11 +9,14 @@ let agent: request.SuperTest<request.Test>;
 let agent2: request.SuperTest<request.Test>;
 let agentAdmin: request.SuperTest<request.Test>;
 
+let globalPostId: string;
+
 beforeAll(async () => {
   app = await getApp();
   agentLogout = request.agent(app);
   agent = request.agent(app);
   agent2 = request.agent(app);
+
   await agent.post("/users").send({
     username: "testuser",
     password: "testuserpassword"
@@ -22,6 +25,7 @@ beforeAll(async () => {
     username: "testuser2",
     password: "testuserpassword"
   });
+
   await agent.post("/login").send({
     username: "testuser",
     password: "testuserpassword"
@@ -30,6 +34,11 @@ beforeAll(async () => {
     username: "testuser2",
     password: "testuserpassword"
   });
+
+  let response = await agent.post("/posts").send({
+    url: "http://cn.bing.com"
+  });
+  globalPostId = response.body.post._id;
 });
 
 describe("Auth:delete", () => {
@@ -139,6 +148,10 @@ describe("Reply", () => {
 });
 
 describe("Posts", () => {
+  afterAll(async () => {
+    await agent.delete("/posts/" + globalPostId);
+  });
+
   it("can add a post", async () => {
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
@@ -194,10 +207,26 @@ describe("Posts", () => {
   });
 
   it("can edit content by it's owner", async () => {
-    return;
+    let response = await agent
+      .post("/posts/" + globalPostId + "/content")
+      .send({ content: "a" });
+    expect(response.body);
+    expect(response.body.success).toBe(true);
+    expect(response.body.post.content).toBe("a");
+
+    response = await agent
+      .post("/posts/" + globalPostId + "/content")
+      .send({ content: "b" });
+    expect(response.body);
+    expect(response.body.success).toBe(true);
+    expect(response.body.post.content).toBe("b");
   });
 
   it("can't edit content by it's other's", async () => {
+    let response = await agent2
+      .post("/posts/" + globalPostId + "/content")
+      .send({ content: "a" });
+    expect(response.status).toBe(403);
     return;
   });
 
@@ -219,25 +248,6 @@ describe("Posts", () => {
     expect(response.body.success).toBe(true);
     expect(response.body.post);
     let postId = response.body.post._id;
-
-    // response = await agent2.del("/posts/" + postId);
-    // expect(response.body.error).toBe(true);
-
-    response = await agent.del("/posts/" + postId);
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
-  });
-
-  it("can't delete by logout user", async () => {
-    let response = await agent.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
-    expect(response.body.success).toBe(true);
-    expect(response.body.post);
-    let postId = response.body.post._id;
-
-    response = await agentLogout.del("/posts/" + postId);
-    expect(response.body.error).toBe(true);
 
     response = await agent.del("/posts/" + postId);
     expect(response.status).toBe(200);

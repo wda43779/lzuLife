@@ -15,7 +15,9 @@ interface User {
   isAdmin: boolean;
 }
 interface Post {
+  _id?: ObjectID;
   url: string;
+  content?: string;
   user: ObjectID;
 }
 declare global {
@@ -139,10 +141,50 @@ const postController = (db: Db) => {
     const post = await posts.findOne({
       _id: new ObjectID(id)
     });
-    res.send({
-      success: true,
-      post
+    if (post) {
+      res.send({
+        success: true,
+        post
+      });
+    } else {
+      res.status(404);
+      res.send({
+        error: true,
+        errorCode: ERROR_CODE.NOT_FOUND
+      });
+    }
+  });
+
+  router.post("/:id/content", requireLogin, async (req, res) => {
+    const { id } = comb(req.params, { id: "000000000000000000000000" });
+    const { content } = comb(req.body, { content: "" });
+    const _id = new ObjectID(id);
+
+    let post = await posts.findOne({
+      _id
     });
+    if (post) {
+      if (post.user === req.session.user._id) {
+        post.content = content;
+        await posts.findOneAndUpdate({ _id }, { $set: { content } });
+        res.send({
+          success: true,
+          post
+        });
+      } else {
+        res.status(403);
+        res.send({
+          error: true,
+          errorCode: ERROR_CODE.AUTH_FORBIDDEN
+        });
+      }
+    } else {
+      res.status(404);
+      res.send({
+        error: true,
+        errorCode: ERROR_CODE.NOT_FOUND
+      });
+    }
   });
 
   router.delete("/:id", requireLogin, async (req, res) => {
@@ -196,7 +238,11 @@ const usersController = (db: Db) => {
       });
       return;
     }
-    if (await usersCollection.findOne({ username })) {
+    if (
+      await usersCollection.findOne({
+        username
+      })
+    ) {
       res.status(400);
       res.send({
         error: true,
