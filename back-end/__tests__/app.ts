@@ -85,8 +85,10 @@ describe("Auth:login", () => {
         password: "testuserpassword_bad"
       });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe(true);
-    expect(response.body.errorCode).toBe(ERROR_CODE.AUTH_FAILED);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.AUTH_FAILED
+    });
   });
   it("should unable to login with wrong username", async () => {
     let response = await request(app)
@@ -96,8 +98,10 @@ describe("Auth:login", () => {
         password: "testuserpassword"
       });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe(true);
-    expect(response.body.errorCode).toBe(ERROR_CODE.AUTH_FAILED);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.AUTH_FAILED
+    });
   });
 });
 
@@ -119,8 +123,10 @@ describe("Users", () => {
       password: "123"
     });
     expect(response.status).toBe(400);
-    expect(response.body.error).toBe(true);
-    expect(response.body.errorCode).toBe(ERROR_CODE.USERS_EASY_PASSWORD);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.USERS_EASY_PASSWORD
+    });
   });
 
   it("can inspect yourself", async () => {
@@ -133,8 +139,10 @@ describe("Users", () => {
   it("can't inspect yourself without log in", async () => {
     let response = await agentLogout.get("/me");
     expect(response.status).toBe(401);
-    expect(response.body.error).toBe(true);
-    expect(response.body.errorCode).toBe(ERROR_CODE.AUTH_NOT_LOGIN);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.AUTH_NOT_LOGIN
+    });
   });
 });
 
@@ -166,9 +174,10 @@ describe("Posts", () => {
       url: "http://cn.bing.com"
     });
     expect(response.status).toBe(401);
-    expect(response.body.error).toBe(true);
-    expect(response.body.errorCode).toBe(ERROR_CODE.AUTH_NOT_LOGIN);
-    expect(response.body.post);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.AUTH_NOT_LOGIN
+    });
   });
 
   it("can view a posts", async () => {
@@ -218,14 +227,12 @@ describe("Posts", () => {
     let response = await agent
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "a" });
-    expect(response.body);
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("a");
 
     response = await agent
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "b" });
-    expect(response.body);
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("b");
   });
@@ -274,11 +281,19 @@ describe("Up vote module", () => {
       .send({ upVote: true });
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(true);
+
+    response = await agent.get("/posts/" + globalPostId + "/upVote");
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(true);
   });
   it("can revoke up vote on posts", async () => {
     let response = await agent
       .post("/posts/" + globalPostId + "/upVote")
       .send({ upVote: false });
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(false);
+
+    response = await agent.get("/posts/" + globalPostId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(false);
   });
