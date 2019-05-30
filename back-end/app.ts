@@ -152,24 +152,14 @@ const postController = (db: Db) => {
     });
   });
 
-  router.get("/:id", async (req, res) => {
-    const { id } = comb(req.params, { id: "000000000000000000000000" });
+  router.get("/:id", requireEntity(posts), async (req, res) => {
+    const { id: _id } = comb(req.params, { id: emptyObjectID });
 
-    const post = await posts.findOne({
-      _id: new ObjectID(id)
+    const post = await posts.findOne({ _id });
+    res.send({
+      success: true,
+      post
     });
-    if (post) {
-      res.send({
-        success: true,
-        post
-      });
-    } else {
-      res.status(404);
-      res.send({
-        error: true,
-        errorCode: ERROR_CODE.NOT_FOUND
-      });
-    }
   });
 
   router.post(
@@ -177,13 +167,10 @@ const postController = (db: Db) => {
     requireLogin,
     requireEntity(posts),
     async (req, res) => {
-      const { id } = comb(req.params, { id: "000000000000000000000000" });
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
       const { content } = comb(req.body, { content: "" });
-      const _id = new ObjectID(id);
 
-      let post = await posts.findOne({
-        _id
-      });
+      let post = await posts.findOne({ _id });
       if (post.user === req.session.user._id) {
         post.content = content;
         await posts.findOneAndUpdate({ _id }, { $set: { content } });
@@ -206,11 +193,9 @@ const postController = (db: Db) => {
     requireLogin,
     requireEntity(posts),
     async (req, res) => {
-      const { id } = comb(req.params, { id: "000000000000000000000000" });
-      const _id = new ObjectID(id);
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
 
       let post = await posts.findOne({ _id });
-
       if (post.upVote.includes(req.session.user._id)) {
         res.send({
           success: true,
@@ -230,9 +215,8 @@ const postController = (db: Db) => {
     requireLogin,
     requireEntity(posts),
     async (req, res) => {
-      const { id } = comb(req.params, { id: "000000000000000000000000" });
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
       const { upVote } = comb(req.body, { upVote: false });
-      const _id = new ObjectID(id);
       const user_id = req.session.user._id;
 
       let post = await posts.findOne({ _id });
@@ -258,8 +242,7 @@ const postController = (db: Db) => {
   );
 
   router.get("/:id/upVote", requireLogin, async (req, res) => {
-    const { id } = comb(req.params, { id: "000000000000000000000000" });
-    const _id = new ObjectID(id);
+    const { id: _id } = comb(req.params, { id: emptyObjectID });
 
     let post = await posts.findOne({
       _id
