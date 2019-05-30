@@ -11,6 +11,26 @@ const comb: <T extends object>(src: any, defaultValue: T) => T = <T>(
       } else {
         ret[keys] = defaultValue[keys];
       }
+    } else if (typeof defaultValue[keys] === "boolean") {
+      if (typeof ret[keys] === "string") {
+        switch (ret[keys]) {
+          case "TRUE":
+          case "True":
+          case "true":
+            ret[keys] = true;
+            break;
+          case "FALSE":
+          case "False":
+          case "false":
+            ret[keys] = false;
+            break;
+          default:
+            ret[keys] = defaultValue[keys];
+        }
+      } else if (typeof ret[keys] === "boolean") {
+      } else {
+        ret[keys] = defaultValue[keys];
+      }
     } else if (typeof defaultValue[keys] === "string") {
       if (typeof ret[keys] !== "string") {
         ret[keys] = defaultValue[keys];

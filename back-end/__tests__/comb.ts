@@ -137,4 +137,53 @@ describe("util strict()", () => {
     expect(strictBody);
     expect(strictBody.complex).not.toBe(dft.complex);
   });
+
+  it("can handle boolean", () => {
+    const dft = {
+      bool: false
+    };
+
+    const _dft = {
+      bool: true
+    };
+
+    let strictBody = comb({}, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+
+    strictBody = comb({ bool: false }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+
+    strictBody = comb({ bool: true }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(true);
+
+    strictBody = comb({ bool: "TRUE" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(true);
+    strictBody = comb({ bool: "True" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(true);
+    strictBody = comb({ bool: "true" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(true);
+    strictBody = comb({ bool: "FALSE" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+    strictBody = comb({ bool: "False" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+    strictBody = comb({ bool: "false" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+
+    strictBody = comb({ bool: "some_else" }, dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(false);
+
+    strictBody = comb({ bool: "some_else" }, _dft);
+    expect(strictBody);
+    expect(strictBody.bool).toBe(true);
+  });
 });
