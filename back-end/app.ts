@@ -7,6 +7,7 @@ import comb from "./comb";
 import getDb from "./db";
 import { ERROR_CODE, POSTS_SORT } from "./enums";
 import requireLogin from "./requireLogin";
+import requireEntity from "./requireEntity";
 
 interface User {
   _id?: ObjectID;
@@ -18,6 +19,7 @@ interface Post {
   _id?: ObjectID;
   url: string;
   content?: string;
+  upVote: ObjectID[];
   user: ObjectID;
 }
 declare global {
@@ -127,7 +129,8 @@ const postController = (db: Db) => {
     }
     const resu = await posts.insertOne({
       url,
-      user: req.session.user._id
+      user: req.session.user._id,
+      upVote: []
     });
     res.send({
       success: true,
@@ -155,15 +158,18 @@ const postController = (db: Db) => {
     }
   });
 
-  router.post("/:id/content", requireLogin, async (req, res) => {
-    const { id } = comb(req.params, { id: "000000000000000000000000" });
-    const { content } = comb(req.body, { content: "" });
-    const _id = new ObjectID(id);
+  router.post(
+    "/:id/content",
+    requireLogin,
+    requireEntity(posts),
+    async (req, res) => {
+      const { id } = comb(req.params, { id: "000000000000000000000000" });
+      const { content } = comb(req.body, { content: "" });
+      const _id = new ObjectID(id);
 
-    let post = await posts.findOne({
-      _id
-    });
-    if (post) {
+      let post = await posts.findOne({
+        _id
+      });
       if (post.user === req.session.user._id) {
         post.content = content;
         await posts.findOneAndUpdate({ _id }, { $set: { content } });
@@ -178,11 +184,81 @@ const postController = (db: Db) => {
           errorCode: ERROR_CODE.AUTH_FORBIDDEN
         });
       }
-    } else {
-      res.status(404);
+    }
+  );
+
+  router.get(
+    "/:id/upVote",
+    requireLogin,
+    requireEntity(posts),
+    async (req, res) => {
+      const { id } = comb(req.params, { id: "000000000000000000000000" });
+      const _id = new ObjectID(id);
+
+      let post = await posts.findOne({ _id });
+
+      if (post.upVote.includes(req.session.user._id)) {
+        res.send({
+          success: true,
+          upVote: true
+        });
+      } else {
+        res.send({
+          success: true,
+          upVote: false
+        });
+      }
+    }
+  );
+
+  router.post(
+    "/:id/upVote",
+    requireLogin,
+    requireEntity(posts),
+    async (req, res) => {
+      const { id } = comb(req.params, { id: "000000000000000000000000" });
+      const { upVote } = comb(req.body, { upVote: false });
+      const _id = new ObjectID(id);
+      const user_id = req.session.user._id;
+
+      let post = await posts.findOne({ _id });
+      const postUpVoteIncludes = post.upVote.includes(user_id);
+      const dstUpVote = upVote;
+
+      if (postUpVoteIncludes !== dstUpVote) {
+        if (dstUpVote) {
+          await posts.findOneAndUpdate({ _id }, { $push: { upVote: user_id } });
+        } else {
+          post.upVote.splice(post.upVote.indexOf(user_id), 1);
+          await posts.findOneAndUpdate(
+            { _id },
+            { $set: { upVote: post.upVote } }
+          );
+        }
+      }
       res.send({
-        error: true,
-        errorCode: ERROR_CODE.NOT_FOUND
+        success: true,
+        upVote
+      });
+    }
+  );
+
+  router.get("/:id/upVote", requireLogin, async (req, res) => {
+    const { id } = comb(req.params, { id: "000000000000000000000000" });
+    const _id = new ObjectID(id);
+
+    let post = await posts.findOne({
+      _id
+    });
+    if (post.upVote.includes(req.session.user._id)) {
+      res.send({
+        success: true,
+        upVote: true
+      });
+    } else {
+      res.send({
+        success: true,
+        upVote: false
       });
     }
   });

@@ -41,6 +41,10 @@ beforeAll(async () => {
   globalPostId = response.body.post._id;
 });
 
+afterAll(async () => {
+  await agent.delete("/posts/" + globalPostId);
+});
+
 describe("Auth:delete", () => {
   it("should able to delete", async () => {
     const agent = request.agent(app);
@@ -148,10 +152,6 @@ describe("Reply", () => {
 });
 
 describe("Posts", () => {
-  afterAll(async () => {
-    await agent.delete("/posts/" + globalPostId);
-  });
-
   it("can add a post", async () => {
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
@@ -169,6 +169,14 @@ describe("Posts", () => {
     expect(response.body.error).toBe(true);
     expect(response.body.errorCode).toBe(ERROR_CODE.AUTH_NOT_LOGIN);
     expect(response.body.post);
+  });
+
+  it("can view a posts", async () => {
+    let response = await agentLogout.get("/posts/" + globalPostId);
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.post);
+    expect(response.body.post._id).toBe(globalPostId);
   });
 
   it("can add a post and view a posts by public", async () => {
@@ -227,7 +235,6 @@ describe("Posts", () => {
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "a" });
     expect(response.status).toBe(403);
-    return;
   });
 
   it("can delete your posts", async () => {
@@ -257,13 +264,23 @@ describe("Posts", () => {
 
 describe("Up vote module", () => {
   it("can get your up vote on posts", async () => {
-    return;
+    let response = await agent.get("/posts/" + globalPostId + "/upVote");
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote);
   });
   it("can up vote on posts", async () => {
-    return;
+    let response = await agent
+      .post("/posts/" + globalPostId + "/upVote")
+      .send({ upVote: true });
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(true);
   });
   it("can revoke up vote on posts", async () => {
-    return;
+    let response = await agent
+      .post("/posts/" + globalPostId + "/upVote")
+      .send({ upVote: false });
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(false);
   });
 
   it("can get your up vote on reply", async () => {
