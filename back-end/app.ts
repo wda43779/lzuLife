@@ -3,7 +3,7 @@ import * as express from "express";
 import * as session from "express-session";
 import { Db, ObjectID } from "mongodb";
 import * as validator from "validator";
-import comb from "./comb";
+import comb, { emptyObjectID } from "./comb";
 import getDb from "./db";
 import { ERROR_CODE, POSTS_SORT } from "./enums";
 import requireLogin from "./requireLogin";
@@ -11,17 +11,31 @@ import requireEntity from "./requireEntity";
 
 interface User {
   _id?: ObjectID;
+
   username: string;
   password: string;
   isAdmin: boolean;
 }
 interface Post {
   _id?: ObjectID;
+
+  user: ObjectID;
+  upVote: ObjectID[];
+
   url: string;
   content?: string;
-  upVote: ObjectID[];
-  user: ObjectID;
 }
+interface Reply {
+  _id?: ObjectID;
+
+  user: ObjectID;
+  post: ObjectID;
+  refer?: ObjectID;
+  upVote: ObjectID[];
+
+  content: string;
+}
+
 declare global {
   namespace Express {
     interface SessionData {
@@ -347,6 +361,54 @@ const usersController = (db: Db) => {
   return router;
 };
 
+const repliesController = (db: Db) => {
+  const router = express.Router();
+  const replies = db.collection<Reply>("replies");
+
+  router.get("/", async (req, res) => {
+    const { skip, pageSize } = comb(req.query, {
+      skip: 0,
+      pageSize: 5
+    });
+    res.send(await replies.find({}, { skip, limit: pageSize }).toArray());
+  });
+
+  router.post("/", requireLogin, async (req, res) => {
+    const { content, post } = comb(req.body, {
+      content: "",
+      post: emptyObjectID
+    });
+    const user = req.session.user._id;
+    let reply: Reply = {
+      content,
+      user,
+      post,
+      upVote: []
+    };
+    if (req.body.refer) {
+      const { refer } = comb(req.body, {
+        refer: emptyObjectID
+      });
+      reply.refer = refer;
+    }
+    reply._id = (await replies.insertOne(reply)).insertedId;
+    res.send({
+      success: true,
+      reply
+    });
+  });
+
+  router.get("/:id", requireEntity(replies), async (req, res) => {
+    const { id: _id } = comb(req.body, { id: emptyObjectID });
+    res.send({
+      success: true,
+      reply: await replies.findOne({ _id })
+    });
+  });
+
+  return router;
+};
+
 const init = async () => {
   const app = express();
 
@@ -372,6 +434,7 @@ const init = async () => {
   app.use("/", authController(db));
   app.use("/users", usersController(db));
   app.use("/posts", postController(db));
+  app.use("/replies", postController(db));
 
   return app;
 };
