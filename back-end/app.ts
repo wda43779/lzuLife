@@ -35,11 +35,12 @@ interface Reply {
 
   content: string;
 }
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 declare global {
   namespace Express {
     interface SessionData {
-      user?: User;
+      user?: Omit<User, "_id"> & { _id: string };
     }
   }
 }
@@ -54,7 +55,7 @@ const authController = (db: Db) => {
       password: ""
     });
 
-    let user = await users.findOne({ username });
+    let user: any = await users.findOne({ username });
     if (user) {
       const rightPassword = user["password"];
       if (password === rightPassword) {
@@ -64,8 +65,10 @@ const authController = (db: Db) => {
           });
         }
         req.session.user = user;
-        res.send({
-          success: true
+        req.session.save(err => {
+          res.send({
+            success: true
+          });
         });
         return;
       }
@@ -80,6 +83,7 @@ const authController = (db: Db) => {
   });
 
   router.get("/me", requireLogin, async (req, res) => {
+    console.log(req.session);
     res.send({
       success: true,
       user: req.session.user
@@ -119,12 +123,14 @@ const postController = (db: Db) => {
         return;
       case POSTS_SORT.HN:
         res.send({
-          error: true
+          error: true,
+          errorCode: "NOT_IMPLEMENT"
         });
         return;
       case POSTS_SORT.BBS:
         res.send({
-          error: true
+          error: true,
+          errorCode: "NOT_IMPLEMENT"
         });
         return;
     }
@@ -135,15 +141,16 @@ const postController = (db: Db) => {
       url: ""
     });
     if (!validator.isURL(url)) {
-      console.log(url);
+      res.status(400);
       res.send({
-        error: true
+        error: true,
+        errorCode: ERROR_CODE.BAD_REQUEST
       });
       return;
     }
     const resu = await posts.insertOne({
       url,
-      user: req.session.user._id,
+      user: new ObjectID(req.session.user._id),
       upVote: []
     });
     res.send({
@@ -171,7 +178,7 @@ const postController = (db: Db) => {
       const { content } = comb(req.body, { content: "" });
 
       let post = await posts.findOne({ _id });
-      if (post.user === req.session.user._id) {
+      if (post.user.equals(req.session.user._id)) {
         post.content = content;
         await posts.findOneAndUpdate({ _id }, { $set: { content } });
         res.send({
@@ -188,15 +195,56 @@ const postController = (db: Db) => {
     }
   );
 
+  router.post(
+    "/:id/upVote",
+    requireLogin,
+    requireEntity(posts),
+    async (req, res) => {
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
+      const { upVote } = comb(req.body, { upVote: false });
+      const user_id = new ObjectID(req.session.user._id);
+
+      let post = await posts.findOne({ _id });
+      const postUpVoteIncludes =
+        post.upVote.findIndex(i => i.equals(user_id)) !== -1;
+      const dstUpVote = upVote;
+
+      console.log(post.upVote, upVote);
+      if (postUpVoteIncludes !== dstUpVote) {
+        if (dstUpVote) {
+          post.upVote.push(user_id);
+          await posts.findOneAndUpdate(
+            { _id },
+            { $set: { upVote: post.upVote } }
+          );
+        } else {
+          post.upVote.splice(post.upVote.indexOf(user_id), 1);
+          await posts.findOneAndUpdate(
+            { _id },
+            { $set: { upVote: post.upVote } }
+          );
+        }
+      }
+      console.log(post.upVote, upVote, await posts.findOne({ _id }));
+      res.send({
+        success: true,
+        upVote
+      });
+    }
+  );
+
   router.get(
     "/:id/upVote",
     requireLogin,
     requireEntity(posts),
     async (req, res) => {
       const { id: _id } = comb(req.params, { id: emptyObjectID });
+      const user_id = new ObjectID(req.session.user._id);
 
-      let post = await posts.findOne({ _id });
-      if (post.upVote.includes(req.session.user._id)) {
+      let post = await posts.findOne({
+        _id
+      });
+      if (post.upVote.findIndex(i => i.equals(user_id)) !== -1) {
         res.send({
           success: true,
           upVote: true
@@ -210,64 +258,13 @@ const postController = (db: Db) => {
     }
   );
 
-  router.post(
-    "/:id/upVote",
-    requireLogin,
-    requireEntity(posts),
-    async (req, res) => {
-      const { id: _id } = comb(req.params, { id: emptyObjectID });
-      const { upVote } = comb(req.body, { upVote: false });
-      const user_id = req.session.user._id;
-
-      let post = await posts.findOne({ _id });
-      const postUpVoteIncludes = post.upVote.includes(user_id);
-      const dstUpVote = upVote;
-
-      if (postUpVoteIncludes !== dstUpVote) {
-        if (dstUpVote) {
-          await posts.findOneAndUpdate({ _id }, { $push: { upVote: user_id } });
-        } else {
-          post.upVote.splice(post.upVote.indexOf(user_id), 1);
-          await posts.findOneAndUpdate(
-            { _id },
-            { $set: { upVote: post.upVote } }
-          );
-        }
-      }
-      res.send({
-        success: true,
-        upVote
-      });
-    }
-  );
-
-  router.get("/:id/upVote", requireLogin, async (req, res) => {
-    const { id: _id } = comb(req.params, { id: emptyObjectID });
-
-    let post = await posts.findOne({
-      _id
-    });
-    if (post.upVote.includes(req.session.user._id)) {
-      res.send({
-        success: true,
-        upVote: true
-      });
-    } else {
-      res.send({
-        success: true,
-        upVote: false
-      });
-    }
-  });
-
   router.delete("/:id", requireLogin, async (req, res) => {
-    const { id } = comb(req.params, { id: "000000000000000000000000" });
-    const _id = new ObjectID(id);
-    const user_id = req.session.user._id;
+    const { id: _id } = comb(req.params, { id: emptyObjectID });
+    const user_id = new ObjectID(req.session.user._id);
 
     const post = await posts.findOne({ _id });
     if (post) {
-      if (post.user === user_id) {
+      if (post.user.equals(user_id)) {
         await posts.findOneAndDelete({ _id });
         res.send({
           success: true
@@ -361,7 +358,7 @@ const repliesController = (db: Db) => {
       content: "",
       post: emptyObjectID
     });
-    const user = req.session.user._id;
+    const user = new ObjectID(req.session.user._id);
     let reply: Reply = {
       content,
       user,
@@ -388,6 +385,66 @@ const repliesController = (db: Db) => {
       reply: await replies.findOne({ _id })
     });
   });
+
+  router.post(
+    "/:id/upVote",
+    requireLogin,
+    requireEntity(replies),
+    async (req, res) => {
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
+      const { upVote } = comb(req.body, { upVote: false });
+      const user_id = new ObjectID(req.session.user._id);
+
+      let reply = await replies.findOne({ _id });
+      const postUpVoteIncludes =
+        reply.upVote.findIndex(i => i.equals(user_id)) !== -1;
+
+      if (postUpVoteIncludes !== upVote) {
+        if (upVote) {
+          reply.upVote.push(user_id);
+          await replies.findOneAndUpdate(
+            { _id },
+            { $set: { upVote: reply.upVote } }
+          );
+        } else {
+          reply.upVote.splice(reply.upVote.indexOf(user_id), 1);
+          await replies.findOneAndUpdate(
+            { _id },
+            { $set: { upVote: reply.upVote } }
+          );
+        }
+      }
+      res.send({
+        success: true,
+        upVote
+      });
+    }
+  );
+
+  router.get(
+    "/:id/upVote",
+    requireLogin,
+    requireEntity(replies),
+    async (req, res) => {
+      const { id: _id } = comb(req.params, { id: emptyObjectID });
+      const user_id = new ObjectID(req.session.user._id);
+
+      let reply = await replies.findOne({
+        _id
+      });
+      if (reply.upVote.findIndex(i => i.equals(user_id)) !== -1) {
+        res.send({
+          success: true,
+          upVote: true
+        });
+      } else {
+        res.send({
+          success: true,
+          upVote: false
+        });
+      }
+    }
+  );
 
   return router;
 };
@@ -417,7 +474,7 @@ const init = async () => {
   app.use("/", authController(db));
   app.use("/users", usersController(db));
   app.use("/posts", postController(db));
-  app.use("/replies", postController(db));
+  app.use("/replies", repliesController(db));
 
   return app;
 };

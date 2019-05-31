@@ -1,6 +1,7 @@
 import { Express } from "express";
 import * as request from "supertest";
 import getApp from "../app";
+import getDb from "../db";
 import { ERROR_CODE, POSTS_SORT } from "../enums";
 
 let app: Express;
@@ -10,39 +11,54 @@ let agent2: request.SuperTest<request.Test>;
 let agentAdmin: request.SuperTest<request.Test>;
 
 let globalPostId: string;
+let globalReplyId: string;
 
 beforeAll(async () => {
   app = await getApp();
-  agentLogout = request.agent(app);
+
+  const db = await getDb();
+  const userId = (await db.collection("users").insertOne({
+    username: "testuser",
+    password: "testuserpassword",
+    isAdmin: false
+  })).insertedId;
+  console.log("userId agent: ", userId);
+  await db.collection("users").insertOne({
+    username: "testuser2",
+    password: "testuserpassword",
+    isAdmin: false
+  });
+  const postId = (await db.collection("posts").insertOne({
+    user: userId,
+    url: "http://cn.bing.com",
+    upVote: []
+  })).insertedId;
+  globalPostId = "" + postId
+
+  const replyId = (await db.collection("replies").insertOne({
+    user: userId,
+    post: postId,
+    upVote: [],
+    content: "Awesome!"
+  })).insertedId;
+  globalReplyId = "" + replyId
+
   agent = request.agent(app);
   agent2 = request.agent(app);
-
-  await agent.post("/users").send({
+  agentLogout = request.agent(app);
+  let loginRes1 = await agent.post("/login").send({
     username: "testuser",
     password: "testuserpassword"
   });
-  await agent.post("/users").send({
+  console.log("agent1 logined: ", loginRes1.body);
+
+  let loginRes2 = await agent2.post("/login").send({
     username: "testuser2",
     password: "testuserpassword"
   });
+  console.log("agent2 logined: ", loginRes2.body);
 
-  await agent.post("/login").send({
-    username: "testuser",
-    password: "testuserpassword"
-  });
-  await agent2.post("/login").send({
-    username: "testuser2",
-    password: "testuserpassword"
-  });
-
-  let response = await agent.post("/posts").send({
-    url: "http://cn.bing.com"
-  });
-  globalPostId = response.body.post._id;
-});
-
-afterAll(async () => {
-  await agent.delete("/posts/" + globalPostId);
+  return;
 });
 
 describe("Auth:delete", () => {
@@ -107,9 +123,11 @@ describe("Auth:login", () => {
 
 describe("Users", () => {
   it("can't sign up without username", async () => {
-    let response = await agent.post("/users").send({
-      password: "testuserpassword"
-    });
+    let response = await agent
+      .post("/users")
+      .send({
+        password: "testuserpassword"
+      });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -118,10 +136,12 @@ describe("Users", () => {
   });
 
   it("can't sign up with easy password", async () => {
-    let response = await agent.post("/users").send({
-      username: "hello_hello_",
-      password: "123"
-    });
+    let response = await agent
+      .post("/users")
+      .send({
+        username: "hello_hello_",
+        password: "123"
+      });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -146,33 +166,24 @@ describe("Users", () => {
   });
 });
 
-describe("Reply", () => {
-  it("can create a reply for posts", async () => {
-    return;
-  });
-  it("can create a reply for posts and refer to another reply", async () => {
-    return;
-  });
-
-  it("can delete your reply", async () => {
-    return;
-  });
-});
-
 describe("Posts", () => {
   it("can add a post", async () => {
-    let response = await agent.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await agent
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.post);
     expect(response.body.post._id);
   });
   it("can't post without a account", async () => {
-    let response = await agentLogout.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await agentLogout
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({
       error: true,
@@ -189,9 +200,11 @@ describe("Posts", () => {
   });
 
   it("can add a post and view a posts by public", async () => {
-    let response = await agent.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await agent
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.body.post);
     let postId = response.body.post._id;
 
@@ -203,9 +216,11 @@ describe("Posts", () => {
   });
 
   it("can list all share in time order", async () => {
-    let response = await agent.get("/posts").query({
-      sort: POSTS_SORT.TIME
-    });
+    let response = await agent
+      .get("/posts")
+      .query({
+        sort: POSTS_SORT.TIME
+      });
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
 
@@ -213,11 +228,13 @@ describe("Posts", () => {
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
 
-    response = await agent.get("/posts").query({
-      sort: POSTS_SORT.TIME,
-      skip: 0,
-      pageSize: 5
-    });
+    response = await agent
+      .get("/posts")
+      .query({
+        sort: POSTS_SORT.TIME,
+        skip: 0,
+        pageSize: 5
+      });
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
     expect((<Array<any>>response.body).length).toBeLessThanOrEqual(5);
@@ -227,6 +244,7 @@ describe("Posts", () => {
     let response = await agent
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "a" });
+      console.log(response.body)
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("a");
 
@@ -237,7 +255,7 @@ describe("Posts", () => {
     expect(response.body.post.content).toBe("b");
   });
 
-  it("can't edit content by it's other's", async () => {
+  it("can't edit content by other", async () => {
     let response = await agent2
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "a" });
@@ -245,9 +263,11 @@ describe("Posts", () => {
   });
 
   it("can delete your posts", async () => {
-    let response = await agent.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await agent
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.body.post);
     let postId = response.body.post._id;
     response = await agent.delete("/posts/" + postId);
@@ -256,9 +276,11 @@ describe("Posts", () => {
   });
 
   it("can't delete by others", async () => {
-    let response = await agent.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await agent
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.body.success).toBe(true);
     expect(response.body.post);
     let postId = response.body.post._id;
@@ -267,6 +289,39 @@ describe("Posts", () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
   });
+});
+
+describe("Reply module", () => {
+  it("can reply to post", async () => {
+    let response = await agent
+      .post("/replies")
+      .send({
+        content: "Awesome post!",
+        post: globalPostId
+      });
+    expect(response.body.success).toBe(true);
+    expect(response.body.reply._id).toBeDefined();
+    expect(response.body.reply.post).toBe(globalPostId);
+  });
+  it("can create a reply for posts", async () => {
+    return;
+  });
+  it("can create a reply for posts and refer to another reply", async () => {
+    return;
+  });
+
+  it("can delete your reply", async () => {
+    return;
+  });
+
+  // it("can reply to post and refer to another post", async () => {
+  //   let response = await agent().post("/replies").send({
+  //     content: "Awesome post!",
+  //     post: globalPostId
+  //   });
+  //   expect(response.body.success).toBe(true);
+  //   expect(response.body.reply._id).toBeDefined();
+  // });
 });
 
 describe("Up vote module", () => {
@@ -299,12 +354,30 @@ describe("Up vote module", () => {
   });
 
   it("can get your up vote on reply", async () => {
-    return;
+    let response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote);
   });
   it("can up vote on reply", async () => {
-    return;
+    let response = await agent
+      .post("/replies/" + globalReplyId + "/upVote")
+      .send({ upVote: true });
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(true);
+
+    response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(true);
   });
   it("can revoke up vote on reply", async () => {
-    return;
+    let response = await agent
+      .post("/replies/" + globalReplyId + "/upVote")
+      .send({ upVote: false });
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(false);
+
+    response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    expect(response.body.success).toBe(true);
+    expect(response.body.upVote).toBe(false);
   });
 });

@@ -10,7 +10,13 @@ const dbInit = async () => {
   client = await MongoClient.connect(url, {
     useNewUrlParser: true
   });
-  db = client.db();
+  if (process.env["NODE_ENV"] === "test") {
+    console.log("Found test env, using test db");
+    db = client.db("testDB");
+    db.dropDatabase();
+  } else {
+    db = client.db();
+  }
 };
 
 const getDb = async () => {
