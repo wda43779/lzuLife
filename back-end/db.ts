@@ -4,6 +4,7 @@ import { MongoClient, Db } from "mongodb";
 let url = "mongodb://localhost:27017/lzu";
 
 if (process.env["DRONE"] === "true") {
+  console.log("Found CI(Drone CI) env, using test db");
   url = "mongodb://mongo:27017/lzu";
 }
 
