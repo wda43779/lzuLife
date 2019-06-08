@@ -1,7 +1,11 @@
 import { MongoClient, Db } from "mongodb";
 
 // Connection URL
-const url = "mongodb://localhost:27017/lzu";
+let url = "mongodb://localhost:27017/lzu";
+
+if (process.env["DRONE"] === "true") {
+  url = "mongodb://mongo:27017/lzu";
+}
 
 let client: MongoClient;
 let db: Db;

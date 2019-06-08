@@ -1,0 +1,16 @@
+kind: pipeline
+name: default
+
+steps:
+- name: test
+  image: node
+  commands:
+  - npm install
+  - npm run test:ci
+
+services:
+- name: mongo
+  image: mongo:4
+  command: [ --smallfiles ]
+  ports:
+  - 27017
