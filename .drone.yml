@@ -5,6 +5,7 @@ steps:
 - name: test
   image: node
   commands:
+  - cd back-end
   - npm install
   - npm run test:ci
 
