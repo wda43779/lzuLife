@@ -33,7 +33,7 @@ beforeAll(async () => {
     url: "http://cn.bing.com",
     upVote: []
   })).insertedId;
-  globalPostId = "" + postId
+  globalPostId = "" + postId;
 
   const replyId = (await db.collection("replies").insertOne({
     user: userId,
@@ -41,7 +41,7 @@ beforeAll(async () => {
     upVote: [],
     content: "Awesome!"
   })).insertedId;
-  globalReplyId = "" + replyId
+  globalReplyId = "" + replyId;
 
   agent = request.agent(app);
   agent2 = request.agent(app);
@@ -123,11 +123,9 @@ describe("Auth:login", () => {
 
 describe("Users", () => {
   it("can't sign up without username", async () => {
-    let response = await agent
-      .post("/users")
-      .send({
-        password: "testuserpassword"
-      });
+    let response = await agent.post("/users").send({
+      password: "testuserpassword"
+    });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -136,12 +134,10 @@ describe("Users", () => {
   });
 
   it("can't sign up with easy password", async () => {
-    let response = await agent
-      .post("/users")
-      .send({
-        username: "hello_hello_",
-        password: "123"
-      });
+    let response = await agent.post("/users").send({
+      username: "hello_hello_",
+      password: "123"
+    });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -168,22 +164,18 @@ describe("Users", () => {
 
 describe("Posts", () => {
   it("can add a post", async () => {
-    let response = await agent
-      .post("/posts")
-      .send({
-        url: "http://cn.bing.com"
-      });
+    let response = await agent.post("/posts").send({
+      url: "http://cn.bing.com"
+    });
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.post);
     expect(response.body.post._id);
   });
   it("can't post without a account", async () => {
-    let response = await agentLogout
-      .post("/posts")
-      .send({
-        url: "http://cn.bing.com"
-      });
+    let response = await agentLogout.post("/posts").send({
+      url: "http://cn.bing.com"
+    });
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({
       error: true,
@@ -200,11 +192,9 @@ describe("Posts", () => {
   });
 
   it("can add a post and view a posts by public", async () => {
-    let response = await agent
-      .post("/posts")
-      .send({
-        url: "http://cn.bing.com"
-      });
+    let response = await agent.post("/posts").send({
+      url: "http://cn.bing.com"
+    });
     expect(response.body.post);
     let postId = response.body.post._id;
 
@@ -216,11 +206,9 @@ describe("Posts", () => {
   });
 
   it("can list all share in time order", async () => {
-    let response = await agent
-      .get("/posts")
-      .query({
-        sort: POSTS_SORT.TIME
-      });
+    let response = await agent.get("/posts").query({
+      sort: POSTS_SORT.TIME
+    });
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
 
@@ -228,13 +216,11 @@ describe("Posts", () => {
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
 
-    response = await agent
-      .get("/posts")
-      .query({
-        sort: POSTS_SORT.TIME,
-        skip: 0,
-        pageSize: 5
-      });
+    response = await agent.get("/posts").query({
+      sort: POSTS_SORT.TIME,
+      skip: 0,
+      pageSize: 5
+    });
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
     expect((<Array<any>>response.body).length).toBeLessThanOrEqual(5);
@@ -244,7 +230,6 @@ describe("Posts", () => {
     let response = await agent
       .post("/posts/" + globalPostId + "/content")
       .send({ content: "a" });
-      console.log(response.body)
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("a");
 
@@ -263,11 +248,9 @@ describe("Posts", () => {
   });
 
   it("can delete your posts", async () => {
-    let response = await agent
-      .post("/posts")
-      .send({
-        url: "http://cn.bing.com"
-      });
+    let response = await agent.post("/posts").send({
+      url: "http://cn.bing.com"
+    });
     expect(response.body.post);
     let postId = response.body.post._id;
     response = await agent.delete("/posts/" + postId);
@@ -276,11 +259,9 @@ describe("Posts", () => {
   });
 
   it("can't delete by others", async () => {
-    let response = await agent
-      .post("/posts")
-      .send({
-        url: "http://cn.bing.com"
-      });
+    let response = await agent.post("/posts").send({
+      url: "http://cn.bing.com"
+    });
     expect(response.body.success).toBe(true);
     expect(response.body.post);
     let postId = response.body.post._id;
@@ -293,12 +274,10 @@ describe("Posts", () => {
 
 describe("Reply module", () => {
   it("can reply to post", async () => {
-    let response = await agent
-      .post("/replies")
-      .send({
-        content: "Awesome post!",
-        post: globalPostId
-      });
+    let response = await agent.post("/replies").send({
+      content: "Awesome post!",
+      post: globalPostId
+    });
     expect(response.body.success).toBe(true);
     expect(response.body.reply._id).toBeDefined();
     expect(response.body.reply.post).toBe(globalPostId);

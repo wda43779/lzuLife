@@ -110,7 +110,6 @@ const postRouter = (db: Db) => {
         post.upVote.findIndex(i => i.equals(user_id)) !== -1;
       const dstUpVote = upVote;
 
-      console.log(post.upVote, upVote);
       if (postUpVoteIncludes !== dstUpVote) {
         if (dstUpVote) {
           post.upVote.push(user_id);
@@ -126,7 +125,6 @@ const postRouter = (db: Db) => {
           );
         }
       }
-      console.log(post.upVote, upVote, await posts.findOne({ _id }));
       res.send({
         success: true,
         upVote

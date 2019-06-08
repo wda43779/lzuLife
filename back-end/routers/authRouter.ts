@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { Db } from 'mongodb';
+import { Router } from "express";
+import { Db } from "mongodb";
 import comb from "../comb";
 import { ERROR_CODE } from "../enums";
 import requireLogin from "../requireLogin";
@@ -43,7 +43,6 @@ const authRouter = (db: Db) => {
   });
 
   router.get("/me", requireLogin, async (req, res) => {
-    console.log(req.session);
     res.send({
       success: true,
       user: req.session.user
