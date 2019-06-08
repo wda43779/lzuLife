@@ -1,0 +1,5 @@
+/
+/?sort=
+/login
+/signUp
+/share
