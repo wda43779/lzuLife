@@ -1,17 +1,10 @@
 import React from "react";
-import Frame from "../components/Frame";
-import Container from "react-bootstrap/Container";
-
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-
-import Tabs from "react-bootstrap/Tabs";
-import Tab from "react-bootstrap/Tab";
-
-import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-
-import { Link } from "react-router-dom";
+import Col from "react-bootstrap/Col";
+import Container from "react-bootstrap/Container";
+import Form from "react-bootstrap/Form";
+import Row from "react-bootstrap/Row";
+import Frame from "../components/Frame";
 
 const Main: React.FC = props => {
   return (

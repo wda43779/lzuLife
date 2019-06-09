@@ -20,7 +20,11 @@ const postRouter = (db: Db) => {
     switch (sort) {
       default:
       case POSTS_SORT.TIME:
-        res.send(await posts.find({}, { skip, limit: pageSize }).toArray());
+        res.send(
+          await posts
+            .find({}, { skip, limit: pageSize, sort: { _id: -1 } })
+            .toArray()
+        );
         return;
       case POSTS_SORT.HN:
         res.send({

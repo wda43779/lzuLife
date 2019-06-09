@@ -9,8 +9,8 @@ import { RouteComponentProps } from "react-router-dom";
 import Frame from "../components/Frame";
 
 const Main: React.FC<RouteComponentProps> = props => {
-  const [username, $username] = useState("");
-  const [password, $password] = useState("");
+  const [url, $url] = useState("");
+  const [title, $title] = useState("");
 
   return (
     <Frame>
@@ -21,13 +21,9 @@ const Main: React.FC<RouteComponentProps> = props => {
               onSubmit={async (e: React.FormEvent) => {
                 e.preventDefault();
                 try {
-                  await axios.post("/api/v1/users", {
-                    username,
-                    password
-                  });
-                  await axios.post("/api/v1/login", {
-                    username,
-                    password
+                  await axios.post("/api/v1/posts", {
+                    url,
+                    title
                   });
                   window.location.replace("/");
                 } catch (err) {
@@ -35,31 +31,31 @@ const Main: React.FC<RouteComponentProps> = props => {
                 }
               }}
             >
-              <Form.Group controlId="formBasicEmail">
-                <Form.Label>用户名</Form.Label>
+              <Form.Group controlId="title">
+                <Form.Label>标题</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="你的用户名"
-                  value={username}
+                  placeholder="标题"
+                  value={title}
                   onChange={(e: any) => {
-                    $username(e.target.value);
+                    $title(e.target.value);
                   }}
                 />
               </Form.Group>
 
-              <Form.Group controlId="formBasicPassword">
-                <Form.Label>密码</Form.Label>
+              <Form.Group controlId="url">
+                <Form.Label>链接</Form.Label>
                 <Form.Control
-                  type="password"
-                  placeholder="你的密码"
-                  value={password}
+                  type="text"
+                  placeholder="链接"
+                  value={url}
                   onChange={(e: any) => {
-                    $password(e.target.value);
+                    $url(e.target.value);
                   }}
                 />
               </Form.Group>
               <Button variant="primary" type="submit">
-                注册
+                提交
               </Button>
             </Form>
           </Col>
