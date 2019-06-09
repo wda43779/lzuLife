@@ -356,6 +356,7 @@ describe("Up vote module", () => {
     let response = await agent.get("/api/v1/posts/" + postId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote);
+    expect(response.body.upVoteCount >= 0).toBe(true);
   });
   it("can up vote on posts", async () => {
     const agent = await agentLoginWith("testuser", "testuserpassword");

@@ -148,12 +148,14 @@ const postRouter = (db: Db) => {
       if (post.upVote.findIndex(i => i.equals(user_id)) !== -1) {
         res.send({
           success: true,
-          upVote: true
+          upVote: true,
+          upVoteCount: post.upVote.length
         });
       } else {
         res.send({
           success: true,
-          upVote: false
+          upVote: false,
+          upVoteCount: post.upVote.length
         });
       }
     }
