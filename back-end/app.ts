@@ -33,7 +33,7 @@ const init = async () => {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        maxAge: 1000
+        maxAge: 5 * 24 * 60 * 60 * 1000
       },
       store: new MongoStore({
         db: db
