@@ -38,7 +38,8 @@ const postRouter = (db: Db) => {
   });
 
   router.post("/", requireLogin, async (req, res) => {
-    const { url } = comb(req.body, {
+    const { title, url } = comb(req.body, {
+      title: "",
       url: ""
     });
     if (!validator.isURL(url)) {
@@ -50,6 +51,7 @@ const postRouter = (db: Db) => {
       return;
     }
     const resu = await posts.insertOne({
+      title,
       url,
       user: new ObjectID(req.session.user._id),
       upVote: []

@@ -13,6 +13,7 @@ interface Post {
   user: ObjectID;
   upVote: ObjectID[];
 
+  title: string;
   url: string;
   content?: string;
 }
