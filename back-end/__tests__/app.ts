@@ -3,26 +3,33 @@ import * as request from "supertest";
 import getApp from "../app";
 import getDb from "../db";
 import { ERROR_CODE, POSTS_SORT } from "../enums";
+import { once } from "lodash";
 
-let app: Express;
-let agentLogout: request.SuperTest<request.Test>;
-let agent: request.SuperTest<request.Test>;
-let agent2: request.SuperTest<request.Test>;
-let agentAdmin: request.SuperTest<request.Test>;
+const getAppOnce = once(getApp);
+const getDbOnce = once(getDb);
 
-let globalPostId: string;
-let globalReplyId: string;
+const agentLoginWith = async (
+  username?: string,
+  password?: string
+): Promise<request.SuperTest<request.Test>> => {
+  const agent = request.agent(await getAppOnce());
+  if (username && password) {
+    await agent.post("/login").send({
+      username,
+      password
+    });
+  }
+  return agent;
+};
 
 beforeAll(async () => {
-  app = await getApp();
-
-  const db = await getDb();
+  const db = await getDbOnce();
+  // promise there is two users, one post and one reply
   const userId = (await db.collection("users").insertOne({
     username: "testuser",
     password: "testuserpassword",
     isAdmin: false
   })).insertedId;
-  console.log("userId agent: ", userId);
   await db.collection("users").insertOne({
     username: "testuser2",
     password: "testuserpassword",
@@ -33,37 +40,17 @@ beforeAll(async () => {
     url: "http://cn.bing.com",
     upVote: []
   })).insertedId;
-  globalPostId = "" + postId;
-
   const replyId = (await db.collection("replies").insertOne({
     user: userId,
     post: postId,
     upVote: [],
     content: "Awesome!"
   })).insertedId;
-  globalReplyId = "" + replyId;
-
-  agent = request.agent(app);
-  agent2 = request.agent(app);
-  agentLogout = request.agent(app);
-  let loginRes1 = await agent.post("/login").send({
-    username: "testuser",
-    password: "testuserpassword"
-  });
-  console.log("agent1 logined: ", loginRes1.body);
-
-  let loginRes2 = await agent2.post("/login").send({
-    username: "testuser2",
-    password: "testuserpassword"
-  });
-  console.log("agent2 logined: ", loginRes2.body);
-
-  return;
 });
 
 describe("Auth:delete", () => {
   it("should able to delete", async () => {
-    const agent = request.agent(app);
+    const agent = request.agent(await getAppOnce());
     let response = await agent.post("/users").send({
       username: "testdelete",
       password: "testuserpassword"
@@ -83,7 +70,7 @@ describe("Auth:delete", () => {
 
 describe("Auth:login", () => {
   it("should able to login", async () => {
-    let response = await request(app)
+    let response = await request(await getAppOnce())
       .post("/login")
       .send({
         username: "testuser",
@@ -94,7 +81,7 @@ describe("Auth:login", () => {
   });
 
   it("should unable to login with wrong password", async () => {
-    let response = await request(app)
+    let response = await request(await getAppOnce())
       .post("/login")
       .send({
         username: "testuser",
@@ -107,7 +94,7 @@ describe("Auth:login", () => {
     });
   });
   it("should unable to login with wrong username", async () => {
-    let response = await request(app)
+    let response = await request(await getAppOnce())
       .post("/login")
       .send({
         username: "testuser_what",
@@ -123,9 +110,11 @@ describe("Auth:login", () => {
 
 describe("Users", () => {
   it("can't sign up without username", async () => {
-    let response = await agent.post("/users").send({
-      password: "testuserpassword"
-    });
+    let response = await request(await getAppOnce())
+      .post("/users")
+      .send({
+        password: "testuserpassword"
+      });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -134,10 +123,12 @@ describe("Users", () => {
   });
 
   it("can't sign up with easy password", async () => {
-    let response = await agent.post("/users").send({
-      username: "hello_hello_",
-      password: "123"
-    });
+    let response = await request(await getAppOnce())
+      .post("/users")
+      .send({
+        username: "hello_hello_",
+        password: "123"
+      });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
       error: true,
@@ -146,6 +137,8 @@ describe("Users", () => {
   });
 
   it("can inspect yourself", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.get("/me");
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -153,7 +146,7 @@ describe("Users", () => {
   });
 
   it("can't inspect yourself without log in", async () => {
-    let response = await agentLogout.get("/me");
+    let response = await request(await getAppOnce()).get("/me");
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({
       error: true,
@@ -164,6 +157,8 @@ describe("Users", () => {
 
 describe("Posts", () => {
   it("can add a post", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
     });
@@ -173,9 +168,11 @@ describe("Posts", () => {
     expect(response.body.post._id);
   });
   it("can't post without a account", async () => {
-    let response = await agentLogout.post("/posts").send({
-      url: "http://cn.bing.com"
-    });
+    let response = await request(await getAppOnce())
+      .post("/posts")
+      .send({
+        url: "http://cn.bing.com"
+      });
     expect(response.status).toBe(401);
     expect(response.body).toMatchObject({
       error: true,
@@ -184,21 +181,25 @@ describe("Posts", () => {
   });
 
   it("can view a posts", async () => {
-    let response = await agentLogout.get("/posts/" + globalPostId);
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+    let response = await request(await getAppOnce()).get("/posts/" + postId);
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.post);
-    expect(response.body.post._id).toBe(globalPostId);
+    expect(response.body.post._id).toBe(postId);
   });
 
   it("can add a post and view a posts by public", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
     });
     expect(response.body.post);
     let postId = response.body.post._id;
 
-    response = await agentLogout.get("/posts/" + postId);
+    response = await request(await getAppOnce()).get("/posts/" + postId);
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
     expect(response.body.post);
@@ -206,6 +207,8 @@ describe("Posts", () => {
   });
 
   it("can list all share in time order", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.get("/posts").query({
       sort: POSTS_SORT.TIME
     });
@@ -227,27 +230,37 @@ describe("Posts", () => {
   });
 
   it("can edit content by it's owner", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+
     let response = await agent
-      .post("/posts/" + globalPostId + "/content")
+      .post("/posts/" + postId + "/content")
       .send({ content: "a" });
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("a");
 
     response = await agent
-      .post("/posts/" + globalPostId + "/content")
+      .post("/posts/" + postId + "/content")
       .send({ content: "b" });
     expect(response.body.success).toBe(true);
     expect(response.body.post.content).toBe("b");
   });
 
   it("can't edit content by other", async () => {
+    const agent2 = await agentLoginWith("testuser2", "testuserpassword");
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+
     let response = await agent2
-      .post("/posts/" + globalPostId + "/content")
+      .post("/posts/" + postId + "/content")
       .send({ content: "a" });
     expect(response.status).toBe(403);
   });
 
   it("can delete your posts", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
     });
@@ -259,6 +272,8 @@ describe("Posts", () => {
   });
 
   it("can't delete by others", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
     let response = await agent.post("/posts").send({
       url: "http://cn.bing.com"
     });
@@ -274,13 +289,17 @@ describe("Posts", () => {
 
 describe("Reply module", () => {
   it("can reply to post", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const replyId = (await db.collection("replies").findOne({}))._id + "";
+
     let response = await agent.post("/replies").send({
       content: "Awesome post!",
-      post: globalPostId
+      post: replyId
     });
     expect(response.body.success).toBe(true);
     expect(response.body.reply._id).toBeDefined();
-    expect(response.body.reply.post).toBe(globalPostId);
+    expect(response.body.reply.post).toBe(replyId);
   });
   it("can create a reply for posts", async () => {
     return;
@@ -292,70 +311,86 @@ describe("Reply module", () => {
   it("can delete your reply", async () => {
     return;
   });
-
-  // it("can reply to post and refer to another post", async () => {
-  //   let response = await agent().post("/replies").send({
-  //     content: "Awesome post!",
-  //     post: globalPostId
-  //   });
-  //   expect(response.body.success).toBe(true);
-  //   expect(response.body.reply._id).toBeDefined();
-  // });
 });
 
 describe("Up vote module", () => {
   it("can get your up vote on posts", async () => {
-    let response = await agent.get("/posts/" + globalPostId + "/upVote");
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+
+    let response = await agent.get("/posts/" + postId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote);
   });
   it("can up vote on posts", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+
     let response = await agent
-      .post("/posts/" + globalPostId + "/upVote")
+      .post("/posts/" + postId + "/upVote")
       .send({ upVote: true });
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(true);
 
-    response = await agent.get("/posts/" + globalPostId + "/upVote");
+    response = await agent.get("/posts/" + postId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(true);
   });
+
   it("can revoke up vote on posts", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const postId = (await db.collection("posts").findOne({}))._id + "";
+
     let response = await agent
-      .post("/posts/" + globalPostId + "/upVote")
+      .post("/posts/" + postId + "/upVote")
       .send({ upVote: false });
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(false);
 
-    response = await agent.get("/posts/" + globalPostId + "/upVote");
+    response = await agent.get("/posts/" + postId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(false);
   });
 
   it("can get your up vote on reply", async () => {
-    let response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const replyId = (await db.collection("replies").findOne({}))._id + "";
+
+    let response = await agent.get("/replies/" + replyId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote);
   });
   it("can up vote on reply", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const replyId = (await db.collection("replies").findOne({}))._id + "";
+
     let response = await agent
-      .post("/replies/" + globalReplyId + "/upVote")
+      .post("/replies/" + replyId + "/upVote")
       .send({ upVote: true });
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(true);
 
-    response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    response = await agent.get("/replies/" + replyId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(true);
   });
   it("can revoke up vote on reply", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+    const db = await getDbOnce();
+    const replyId = (await db.collection("replies").findOne({}))._id + "";
+
     let response = await agent
-      .post("/replies/" + globalReplyId + "/upVote")
+      .post("/replies/" + replyId + "/upVote")
       .send({ upVote: false });
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(false);
 
-    response = await agent.get("/replies/" + globalReplyId + "/upVote");
+    response = await agent.get("/replies/" + replyId + "/upVote");
     expect(response.body.success).toBe(true);
     expect(response.body.upVote).toBe(false);
   });
