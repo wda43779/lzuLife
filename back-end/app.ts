@@ -44,10 +44,10 @@ const init = async () => {
   app.get("/", (req, res) => res.send("Hello World!"));
 
   // Inject routers
-  app.use("/", authRouter(db));
-  app.use("/users", usersRouter(db));
-  app.use("/posts", postsRouter(db));
-  app.use("/replies", repliesRouter(db));
+  app.use("/api/v1/", authRouter(db));
+  app.use("/api/v1/users", usersRouter(db));
+  app.use("/api/v1/posts", postsRouter(db));
+  app.use("/api/v1/replies", repliesRouter(db));
 
   return app;
 };
