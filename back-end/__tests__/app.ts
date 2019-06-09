@@ -1,7 +1,7 @@
 import { Express } from "express";
 import * as request from "supertest";
 import getApp from "../app";
-import getDb from "../db";
+import getDb, { dbInitOnce } from "../db";
 import { ERROR_CODE, POSTS_SORT } from "../enums";
 import { once } from "lodash";
 
@@ -46,6 +46,10 @@ beforeAll(async () => {
     upVote: [],
     content: "Awesome!"
   })).insertedId;
+});
+
+afterAll(async () => {
+  await (await dbInitOnce()).client.close();
 });
 
 describe("Auth:delete", () => {
