@@ -122,12 +122,40 @@ describe("Users", () => {
     });
   });
 
-  it("can't sign up with easy password", async () => {
+  it("can't sign up with easy password 123", async () => {
     let response = await request(await getAppOnce())
       .post("/api/v1/users")
       .send({
         username: "hello_hello_",
         password: "123"
+      });
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.USERS_EASY_PASSWORD
+    });
+  });
+
+  it("can't sign up with easy password 1", async () => {
+    let response = await request(await getAppOnce())
+      .post("/api/v1/users")
+      .send({
+        username: "hello_hello_",
+        password: "1"
+      });
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: true,
+      errorCode: ERROR_CODE.USERS_EASY_PASSWORD
+    });
+  });
+
+  it("can't sign up with easy password 1:1", async () => {
+    let response = await request(await getAppOnce())
+      .post("/api/v1/users")
+      .send({
+        username: "1",
+        password: "1"
       });
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({
