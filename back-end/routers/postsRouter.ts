@@ -5,11 +5,12 @@ import comb, { emptyObjectID } from "../comb";
 import { ERROR_CODE, POSTS_SORT } from "../enums";
 import requireEntity from "../requireEntity";
 import requireLogin from "../requireLogin";
-import { Post } from "../types";
+import { Post, Reply } from "../types";
 
 const postRouter = (db: Db) => {
   const router = express.Router();
   const posts = db.collection<Post>("posts");
+  const replies = db.collection<Reply>("replies");
 
   router.get("/", async (req, res) => {
     const { sort, skip, pageSize } = comb(req.query, {
@@ -73,6 +74,14 @@ const postRouter = (db: Db) => {
     res.send({
       success: true,
       post
+    });
+  });
+
+  router.get("/:id/replies", requireEntity(posts), async (req, res) => {
+    const { id: _id } = comb(req.params, { id: emptyObjectID });
+    res.send({
+      success: true,
+      replies: await replies.find({ post: _id }).toArray()
     });
   });
 

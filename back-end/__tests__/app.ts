@@ -319,21 +319,48 @@ describe("Posts", () => {
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
   });
+
+  it("can query all replies for a post", async () => {
+    const agent = await agentLoginWith("testuser", "testuserpassword");
+
+    let response = await agent.post("/api/v1/posts").send({
+      url: "http://cn.bing.com"
+    });
+    expect(response.body.success).toBe(true);
+    let postId = response.body.post._id;
+
+    await Promise.all([
+      await agent.post("/api/v1/replies").send({
+        content: "Awesome post!",
+        post: postId
+      }),
+      await agent.post("/api/v1/replies").send({
+        content: "🦄",
+        post: postId
+      })
+    ]);
+
+    response = await agent.get(`/api/v1/posts/${postId}/replies`);
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.replies)).toBe(true);
+    expect(response.body.replies.length === 2).toBe(true);
+  });
 });
 
 describe("Reply module", () => {
   it("can reply to post", async () => {
     const agent = await agentLoginWith("testuser", "testuserpassword");
     const db = await getDbOnce();
-    const replyId = (await db.collection("replies").findOne({}))._id + "";
+    const postId = (await db.collection("posts").findOne({}))._id + "";
 
     let response = await agent.post("/api/v1/replies").send({
       content: "Awesome post!",
-      post: replyId
+      post: postId
     });
     expect(response.body.success).toBe(true);
     expect(response.body.reply._id).toBeDefined();
-    expect(response.body.reply.post).toBe(replyId);
+    expect(response.body.reply.post).toBe(postId);
   });
   it("can create a reply for posts", async () => {
     return;
