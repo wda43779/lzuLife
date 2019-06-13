@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import ButtonGroup from "react-bootstrap/ButtonGroup";
 import Col from "react-bootstrap/Col";
@@ -8,10 +9,10 @@ import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Tab from "react-bootstrap/Tab";
 import Tabs from "react-bootstrap/Tabs";
-import Badge from "react-bootstrap/Badge";
-import { Link, RouteComponentProps } from "react-router-dom";
+import { RouteComponentProps } from "react-router-dom";
 import Frame from "../components/Frame";
 import UpVote from "../components/UpVote";
+import UserName from "../components/UserName"
 
 const useFirstRender = () => {
   const [first, $first] = useState(true);
@@ -177,7 +178,7 @@ const Main: React.FC<RouteComponentProps> = props => {
                     borderBottom: "1px solid rgba(0, 0, 0, 0.2)"
                   }}
                 >
-                  <span>{post.user}</span> · <span>几分钟前</span>
+                  <UserName>{post.user}</UserName> · <span>几分钟前</span>
                   <a href={post.url}>
                     <h2>{post.title || post.url}</h2>
                   </a>
@@ -186,7 +187,7 @@ const Main: React.FC<RouteComponentProps> = props => {
                     upVote={post.upVote.includes(userId)}
                     upVoteCount={post.upVote.length}
                   />
-                  <Badge
+                  <Button
                     variant="info"
                     onClick={() =>
                       props.history.push("/post/" + post._id)
@@ -195,8 +196,8 @@ const Main: React.FC<RouteComponentProps> = props => {
                       marginLeft: "1em"
                     }}
                   >
-                    评论 5
-                  </Badge>
+                    查看评论
+                  </Button>
                 </div>
               );
             })}
