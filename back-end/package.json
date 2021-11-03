@@ -20,7 +20,7 @@
     "express": "^4.17.1",
     "express-session": "^1.16.1",
     "mongodb": "^3.2.6",
-    "validator": "^11.0.0"
+    "validator": "^13.7.0"
   },
   "devDependencies": {
     "@types/connect-mongo": "0.0.42",
